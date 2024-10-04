@@ -57,7 +57,7 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
-            
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
