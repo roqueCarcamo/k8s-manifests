@@ -63,7 +63,8 @@ jobs:
       - name: Update image version in deployment.yaml
         run: |
           SHA_VALUE=${GITHUB_SHA}
-          sed -i "s|image: \*\*\*/demo-spring-boot:[^ ]*|image: \*\*\*/demo-spring-boot:${SHA_VALUE}|g" k8s-manifests/deployment.yaml
+          echo "Reemplazando con SHA_VALUE: ${SHA_VALUE}"
+          sed -i "s|image: \*\*\*/demo-spring-boot:[^ ]*|image: \*\*\*/demo-spring-boot:${SHA_VALUE}|g" k8s-manifests/deployment.yaml || echo "Error en el comando sed"
 
       - name: Verificar contenido después del cambio
         run: cat k8s-manifests/deployment.yaml
