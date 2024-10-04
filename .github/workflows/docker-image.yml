@@ -57,11 +57,7 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
-  update-image:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
+            
       - name: Checkout repository
         uses: actions/checkout@v3
 
