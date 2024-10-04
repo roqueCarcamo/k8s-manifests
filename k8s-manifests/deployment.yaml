@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: demo-spring-boot
-          image: rcarcamo/demo-spring-boot:latest
+          image: rcarcamo/demo-spring-boot:64779cf9c98ec8363c18bffac183ff244d784420
           ports:
             - containerPort: 8080
       imagePullSecrets:
