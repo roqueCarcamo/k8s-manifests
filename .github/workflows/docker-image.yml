@@ -60,7 +60,7 @@ jobs:
 
       - name: Actualizar imagen con sed
         run: |
-          sed -i 's|image: rcarcamo/demo-spring-boot:.*|image: rcarcamo/demo-spring-boot:${{ github.sha }}|g' k8s-manifests/deployment.yaml
+          sed -i 's|image: rcarcamo/demo-spring-boot:.*|image: rcarcamo/demo-spring-boot:latest|g' k8s-manifests/deployment.yaml
 
       - name: Configurar Git
         run: |
