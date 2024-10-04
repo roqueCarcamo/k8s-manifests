@@ -59,7 +59,11 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
       - name: Update image version in deployment.yaml
         run: |
-          sed -i 's|image: ***/demo-spring-boot:[^ ]*|image: ***/demo-spring-boot:'"$GITHUB_SHA"'|g' k8s-manifests/deployment.yaml
+          # Usar una variable para almacenar el valor del SHA
+          SHA_VALUE=${GITHUB_SHA}
+          
+          # Reemplazar la imagen con el SHA en el archivo deployment.yaml
+          sed -i "s|image: \*\*\*/demo-spring-boot:[^ ]*|image: \*\*\*/demo-spring-boot:${SHA_VALUE}|g" k8s-manifests/deployment.yaml
 
       - name: Commit changes
         run: |
