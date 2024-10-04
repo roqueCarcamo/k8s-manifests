@@ -58,9 +58,6 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
 
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       - name: Actualizar imagen con sed
         run: |
           sed -i 's|image: rcarcamo/demo-spring-boot:.*|image: rcarcamo/demo-spring-boot:${{ github.sha }}|g' k8s-manifests/deployment.yaml
@@ -78,6 +75,7 @@ jobs:
       - name: Push cambios
         run: git push
 
-      - name: Salida de la imagen
+      - name: Mostrar salida de la imagen
         run: echo 'Imagen construida y enviada a Docker Hub:'
+
 
