@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: demo-spring-boot
-          image: demo-spring-boot:latest
+          image: rcarcamo/demo-spring-boot:latest
           ports:
             - containerPort: 8080

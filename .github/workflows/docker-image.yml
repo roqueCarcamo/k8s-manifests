@@ -1,0 +1,43 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Configurar QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Iniciar sesión en Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Construir y etiquetar la imagen Docker
+        id: build-image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
+
+      - name: Salida de la imagen
+        run: echo "Imagen construida y enviada a Docker Hub: ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest"
+
