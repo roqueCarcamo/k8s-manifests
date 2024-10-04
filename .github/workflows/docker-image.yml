@@ -58,23 +58,6 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
 
-      - name: Actualizar imagen con sed
-        run: |
-          sed -i 's|image: rcarcamo/demo-spring-boot:.*|image: rcarcamo/demo-spring-boot:latest|g' k8s-manifests/deployment.yaml
-
-      - name: Configurar Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Commit cambios
-        run: |
-          git add k8s-manifests/deployment.yaml
-          git commit -m "Actualizar imagen" || echo "No hay cambios para commitear"
-
-      - name: Push cambios
-        run: git push
-
       - name: Mostrar salida de la imagen
         run: echo 'Imagen construida y enviada a Docker Hub:'
 
