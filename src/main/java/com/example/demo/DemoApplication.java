@@ -18,6 +18,6 @@ class HelloController {
 
     @GetMapping("/")
     public String hello() {
-        return "¡Hola Spring Boot con Argo CD Nueva Versión Disponible!";
+        return "¡Hola Spring Boot con Argo CD!";
     }
 }
