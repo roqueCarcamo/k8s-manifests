@@ -65,8 +65,8 @@ jobs:
           SHA_VALUE=${GITHUB_SHA}
           echo "Reemplazando con SHA_VALUE: ${SHA_VALUE}"
           
-          # Cambiar a un patrón más simple para facilitar la verificación
-          sed -i "s|image: \*\*\*/demo-spring-boot:[^ ]*|image: \*\*\*/demo-spring-boot:${SHA_VALUE}|g" k8s-manifests/deployment.yaml
+          # Usar un comando sed más simple
+          sed -i "s|image: rcarcamo/demo-spring-boot:[^ ]*|image: rcarcamo/demo-spring-boot:${SHA_VALUE}|g" k8s-manifests/deployment.yaml
           
           # Verificar si el comando sed se ejecutó correctamente
           if [ $? -eq 0 ]; then
@@ -74,7 +74,8 @@ jobs:
           else
             echo "Error en el comando sed"
           fi
-          
+      
+
       - name: Verificar contenido después del cambio
         run: cat k8s-manifests/deployment.yaml
 
