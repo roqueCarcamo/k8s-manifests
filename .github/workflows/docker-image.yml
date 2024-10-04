@@ -57,15 +57,30 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
+  update-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Actualizar manifiestos con nueva etiqueta
+      - name: Actualizar imagen con sed
         run: |
-          sed -i 's|image: rcarcamo/demo-spring-boot:latest|image: rcarcamo/demo-spring-boot:${{ github.sha }}|g' k8s-manifests/deployment.yaml
-          git config --local user.email "actions@github.com"
-          git config --local user.name "GitHub Actions"
+          sed -i 's|image: rcarcamo/demo-spring-boot:.*|image: rcarcamo/demo-spring-boot:${{ github.sha }}|g' k8s-manifests/deployment.yaml
+
+      - name: Configurar Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit cambios
+        run: |
           git add k8s-manifests/deployment.yaml
-          git commit -m "Actualizar imagen a ${GITHUB_SHA}"
-          git push
+          git commit -m "Actualizar imagen" || echo "No hay cambios para commitear"
+
+      - name: Push cambios
+        run: git push
 
       - name: Salida de la imagen
         run: echo 'Imagen construida y enviada a Docker Hub:'
