@@ -39,5 +39,8 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
 
       - name: Salida de la imagen
-        run: echo "Imagen construida y enviada a Docker Hub: ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest"
+        run: echo 'Imagen construida y enviada a Docker Hub'
+
+
+
 
