@@ -60,7 +60,7 @@ jobs:
 
       - name: Actualizar manifiestos con nueva etiqueta
         run: |
-          sed -i 's|image: ***/demo-spring-boot:[^ ]*|image: ***/demo-spring-boot:${{ github.sha }}|g' k8s-manifests/deployment.yaml
+          sed -i '' 's|image: ***/demo-spring-boot:[^ ]*|image: ***/demo-spring-boot:6e21ed24410483c624dd0984d0dfd407d6c62724|g' k8s-manifests/deployment.yaml
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
           git add k8s-manifests/deployment.yaml
