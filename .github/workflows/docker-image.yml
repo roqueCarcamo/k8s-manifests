@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev
       - qa
     paths-ignore:
       - 'k8s-manifests/**' # Evita ciclos infinitos al ignorar cambios en k8s-manifests
@@ -122,10 +121,6 @@ jobs:
             main)
               echo "ENVIRONMENT=production" >> $GITHUB_ENV
               echo "DEPLOY_FILE=k8s-manifests/main/deployment.yaml" >> $GITHUB_ENV
-              ;;
-            dev)
-              echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-              echo "DEPLOY_FILE=k8s-manifests/dev/deployment.yaml" >> $GITHUB_ENV
               ;;
             qa)
               echo "ENVIRONMENT=qa" >> $GITHUB_ENV
