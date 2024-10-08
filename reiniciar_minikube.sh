@@ -95,51 +95,61 @@ start_or_create_profile() {
   fi
 }
 
-# Verificar versiones de Minikube y kubectl
-echo "========================================"
-echo "Verificando versiones de Minikube y kubectl..."
-echo "========================================"
-minikube version
-kubectl version --client
+# Función para actualizar Homebrew y paquetes
+update_brew() {
+  echo "========================================"
+  echo "Actualizando Homebrew y paquetes..."
+  echo "========================================"
+  brew update && brew upgrade minikube kubectl || echo "Ya tienes las últimas versiones de minikube y kubectl."
+}
 
-# Actualizar Minikube y kubectl si es necesario
-echo "========================================"
-echo "Actualizando Minikube y kubectl (si es necesario)..."
-echo "========================================"
-brew update
-brew upgrade minikube kubectl || echo "Ya tienes las últimas versiones de minikube y kubectl."
+# Función principal
+main() {
+  echo "========================================"
+  echo "Verificando versiones de Minikube y kubectl..."
+  echo "========================================"
+  minikube version
+  kubectl version --client
 
-# Crear e iniciar el perfil 'dev'
-start_or_create_profile "$DEV_PROFILE" "$DEV_CPUS" "$DEV_MEMORY" "$DEV_K8S_VERSION"
+  # Actualizar Homebrew y kubectl
+  update_brew
 
-# Configurar Argo CD en 'dev'
-configure_argocd_nodeport "$DEV_PROFILE" "$DEV_ARGO_PORT"
+  # Crear e iniciar el perfil 'dev'
+  start_or_create_profile "$DEV_PROFILE" "$DEV_CPUS" "$DEV_MEMORY" "$DEV_K8S_VERSION"
 
-# Crear e iniciar el perfil 'qa'
-start_or_create_profile "$QA_PROFILE" "$QA_CPUS" "$QA_MEMORY" "$QA_K8S_VERSION"
+  # Configurar Argo CD en 'dev'
+  configure_argocd_nodeport "$DEV_PROFILE" "$DEV_ARGO_PORT"
 
-# Configurar Argo CD en 'qa'
-configure_argocd_nodeport "$QA_PROFILE" "$QA_ARGO_PORT"
+  # Crear e iniciar el perfil 'qa'
+  start_or_create_profile "$QA_PROFILE" "$QA_CPUS" "$QA_MEMORY" "$QA_K8S_VERSION"
 
-# Obtener contraseñas de Argo CD
-echo "========================================"
-echo "Obteniendo contraseñas iniciales de Argo CD..."
-echo "========================================"
+  # Configurar Argo CD en 'qa'
+  configure_argocd_nodeport "$QA_PROFILE" "$QA_ARGO_PORT"
 
-DEV_PASSWORD=$(get_argocd_password "$DEV_PROFILE")
-QA_PASSWORD=$(get_argocd_password "$QA_PROFILE")
+  # Obtener contraseñas de Argo CD
+  echo "========================================"
+  echo "Obteniendo contraseñas iniciales de Argo CD..."
+  echo "========================================"
 
-# Mostrar URLs y credenciales
-echo "========================================"
-echo "Configuración completada exitosamente."
-echo "========================================"
-echo "Accede a Argo CD en los siguientes URLs:"
-echo "- Dev: https://localhost:$DEV_ARGO_PORT"
-echo "- QA: https://localhost:$QA_ARGO_PORT"
-echo
-echo "Credenciales de Argo CD:"
-echo "- Usuario: admin"
-echo "- Contraseña para Dev: $DEV_PASSWORD"
-echo "- Contraseña para QA: $QA_PASSWORD"
-echo
-echo "Nota: Podrías recibir advertencias de seguridad en el navegador debido a certificados SSL auto-firmados. Puedes ignorarlas para uso local."
+  DEV_PASSWORD=$(get_argocd_password "$DEV_PROFILE")
+  QA_PASSWORD=$(get_argocd_password "$QA_PROFILE")
+
+  # Mostrar URLs y credenciales
+  echo "========================================"
+  echo "Configuración completada exitosamente."
+  echo "========================================"
+  echo "Accede a Argo CD en los siguientes URLs:"
+  echo "- Dev: https://localhost:$DEV_ARGO_PORT"
+  echo "- QA: https://localhost:$QA_ARGO_PORT"
+  echo
+  echo "Credenciales de Argo CD:"
+  echo "- Usuario: admin"
+  echo "- Contraseña para Dev: $DEV_PASSWORD"
+  echo "- Contraseña para QA: $QA_PASSWORD"
+  echo
+  echo "Nota: Podrías recibir advertencias de seguridad en el navegador debido a certificados SSL auto-firmados. Puedes ignorarlas para uso local."
+}
+
+# Ejecutar la función principal
+main
+
