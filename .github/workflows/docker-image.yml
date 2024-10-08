@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
       - qa
     paths-ignore:
       - 'k8s-manifests/**' # Evita ciclos infinitos al ignorar cambios en k8s-manifests
@@ -101,7 +102,16 @@ jobs:
           # Exportar el nuevo tag para uso posterior
           echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
 
-      # 12. Construir y etiquetar la imagen Docker con el nuevo tag
+      # 12. Verificar que NEW_TAG esté establecido
+      - name: Verificar Nuevo Tag
+        run: |
+          echo "Nuevo Tag: $NEW_TAG"
+          if [ -z "$NEW_TAG" ]; then
+            echo "Error: NEW_TAG no está establecido."
+            exit 1
+          fi
+
+      # 13. Construir y etiquetar la imagen Docker con el nuevo tag
       - name: Construir y etiquetar la imagen Docker con nuevo tag
         uses: docker/build-push-action@v4
         with:
@@ -111,7 +121,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
 
-      # 13. Determinar el archivo de despliegue según el ambiente
+      # 14. Determinar el archivo de despliegue según el ambiente
       - name: Determinar Archivo de Deployment
         id: set-env
         run: |
@@ -121,6 +131,10 @@ jobs:
             main)
               echo "ENVIRONMENT=production" >> $GITHUB_ENV
               echo "DEPLOY_FILE=k8s-manifests/main/deployment.yaml" >> $GITHUB_ENV
+              ;;
+            dev)
+              echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+              echo "DEPLOY_FILE=k8s-manifests/dev/deployment.yaml" >> $GITHUB_ENV
               ;;
             qa)
               echo "ENVIRONMENT=qa" >> $GITHUB_ENV
@@ -133,17 +147,18 @@ jobs:
           esac
           echo "Archivo de despliegue: $DEPLOY_FILE"
 
-      # 14. Verificar contenido antes de cambiar
+      # 15. Verificar contenido antes de cambiar
       - name: Verificar contenido antes de cambiar
         run: cat ${{ env.DEPLOY_FILE }}
 
-      # 15. Actualizar la versión de la imagen en deployment.yaml
+      # 16. Actualizar la versión de la imagen en deployment.yaml
       - name: Actualizar versión de la imagen en deployment.yaml
         run: |
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
           echo "Actualizando imagen a: $IMAGE"
           
-          sed -i "s|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ ]*|image: $IMAGE|g" ${{ env.DEPLOY_FILE }}
+          # Usar sed más robusto para manejar posibles comillas y espacios
+          sed -i "s|image:\s*\"\?${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ \"']*\"?|image: \"${IMAGE}\"|g" ${{ env.DEPLOY_FILE }}
           
           if [ $? -eq 0 ]; then
             echo "Reemplazo completado"
@@ -152,17 +167,17 @@ jobs:
             exit 1
           fi
 
-      # 16. Verificar contenido después del cambio
+      # 17. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
         run: cat ${{ env.DEPLOY_FILE }}
 
-      # 17. Commit y Push de los cambios en deployment.yaml
+      # 18. Commit y Push de los cambios en deployment.yaml
       - name: Commit changes
         run: |
           git add ${{ env.DEPLOY_FILE }}
           git commit -m "Actualizar imagen a ${NEW_TAG} en ${ENVIRONMENT}" || echo "No hay cambios que confirmar."
           git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
 
-      # 18. Salida de la imagen
+      # 19. Salida de la imagen
       - name: Salida de la imagen
         run: echo "Imagen construida y enviada a Docker Hub con tag ${NEW_TAG}"
