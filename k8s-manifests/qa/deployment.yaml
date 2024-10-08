@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-spring-boot
+  labels:
+    app: demo-spring-boot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-spring-boot
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: demo-spring-boot
+    spec:
+      containers:
+        - name: demo-spring-boot
+          image: rcarcamo/demo-spring-boot:qa-1
+          ports:
+            - containerPort: 8080
+      imagePullSecrets:
+        - name: dockerhub-secret
