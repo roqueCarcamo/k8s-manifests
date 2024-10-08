@@ -1,15 +1,13 @@
-name: Build, Test, Push Docker Image, and Update Deployment
+name: Build, Test, Push Docker Image with Incremental Tags, and Update Deployment
 
-# 1. Gatillo del flujo de trabajo
 on:
   push:
     branches:
       - main
       - dev
       - qa
-    # Ignorar cambios en k8s-manifests para prevenir ciclos infinitos
     paths-ignore:
-      - 'k8s-manifests/**'
+      - 'k8s-manifests/**' # Evita ciclos infinitos al ignorar cambios en k8s-manifests
 
 jobs:
   build-and-deploy:
@@ -19,17 +17,17 @@ jobs:
       IMAGE_NAME: demo-spring-boot
 
     steps:
-      # 2. Checkout del código
+      # 1. Checkout del código
       - name: Checkout código
         uses: actions/checkout@v3
 
-      # 3. Configurar git para permitir commits posteriores
+      # 2. Configurar Git
       - name: Configurar Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      # 4. Cache de Maven para acelerar las construcciones
+      # 3. Cache de Maven para acelerar las construcciones
       - name: Cache de Maven
         uses: actions/cache@v3
         with:
@@ -38,49 +36,84 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      # 5. Configurar JDK 17
+      # 4. Configurar JDK 17
       - name: Configurar JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'adopt'
 
-      # 6. Construir con Maven
+      # 5. Construir con Maven
       - name: Construir con Maven
         run: mvn clean package -DskipTests
 
-      # 7. Ejecutar pruebas con Maven
+      # 6. Ejecutar pruebas con Maven
       - name: Ejecutar pruebas con Maven
         run: mvn test
 
-      # 8. Configurar QEMU (opcional, para arquitecturas multiplataforma)
+      # 7. Configurar QEMU (opcional para arquitecturas multiplataforma)
       - name: Configurar QEMU
         uses: docker/setup-qemu-action@v2
 
-      # 9. Configurar Docker Buildx
+      # 8. Configurar Docker Buildx
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 10. Iniciar sesión en Docker Hub
+      # 9. Iniciar sesión en Docker Hub
       - name: Iniciar sesión en Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 11. Construir y etiquetar la imagen Docker
-      - name: Construir y etiquetar la imagen Docker
-        id: build-image
+      # 10. Instalar jq para procesar JSON
+      - name: Instalar jq
+        run: sudo apt-get install -y jq
+
+      # 11. Generar nuevo tag incremental
+      - name: Generar nuevo tag
+        id: generate-tag
+        run: |
+          ENVIRONMENT=$(echo "${GITHUB_REF##*/}")
+          IMAGE_REPO=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          echo "Ambiente: ${ENVIRONMENT}"
+          
+          # Obtener las etiquetas actuales desde Docker Hub
+          TAGS=$(curl -s -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" "https://hub.docker.com/v2/repositories/${IMAGE_REPO}/tags?page_size=100" | jq -r '.results[].name')
+          
+          echo "Etiquetas actuales: $TAGS"
+          
+          # Filtrar etiquetas por ambiente
+          ENV_TAGS=$(echo "$TAGS" | grep "^${ENVIRONMENT}-" | sed "s/^${ENVIRONMENT}-//")
+          
+          echo "Etiquetas para el ambiente ${ENVIRONMENT}: $ENV_TAGS"
+          
+          # Determinar el nuevo número
+          if [ -z "$ENV_TAGS" ]; then
+            NEW_NUMBER=1
+          else
+            MAX_NUMBER=$(echo "$ENV_TAGS" | sort -n | tail -1)
+            NEW_NUMBER=$((MAX_NUMBER + 1))
+          fi
+          
+          NEW_TAG="${ENVIRONMENT}-${NEW_NUMBER}"
+          echo "Nuevo tag generado: ${NEW_TAG}"
+          
+          # Exportar el nuevo tag para uso posterior
+          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+
+      # 12. Construir y etiquetar la imagen Docker con el nuevo tag
+      - name: Construir y etiquetar la imagen Docker con nuevo tag
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
 
-      # 12. Determinar el ambiente y el archivo de despliegue
-      - name: Determinar Ambiente y Archivo de Deployment
+      # 13. Determinar el archivo de despliegue según el ambiente
+      - name: Determinar Archivo de Deployment
         id: set-env
         run: |
           BRANCH_NAME=$(echo "${GITHUB_REF##*/}")
@@ -105,18 +138,18 @@ jobs:
           esac
           echo "Archivo de despliegue: $DEPLOY_FILE"
 
-      # 13. Verificar contenido antes de cambiar
+      # 14. Verificar contenido antes de cambiar
       - name: Verificar contenido antes de cambiar
         run: cat ${{ env.DEPLOY_FILE }}
 
-      # 14. Actualizar la versión de la imagen en deployment.yaml
+      # 15. Actualizar la versión de la imagen en deployment.yaml
       - name: Actualizar versión de la imagen en deployment.yaml
         run: |
-          SHA_VALUE=${GITHUB_SHA}
-          echo "Reemplazando con SHA_VALUE: ${SHA_VALUE}"
-
-          sed -i "s|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ ]*|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${SHA_VALUE}|g" ${{ env.DEPLOY_FILE }}
-
+          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
+          echo "Actualizando imagen a: $IMAGE"
+          
+          sed -i "s|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ ]*|image: $IMAGE|g" ${{ env.DEPLOY_FILE }}
+          
           if [ $? -eq 0 ]; then
             echo "Reemplazo completado"
           else
@@ -124,17 +157,17 @@ jobs:
             exit 1
           fi
 
-      # 15. Verificar contenido después del cambio
+      # 16. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
         run: cat ${{ env.DEPLOY_FILE }}
 
-      # 16. Commit y Push de los cambios
+      # 17. Commit y Push de los cambios en deployment.yaml
       - name: Commit changes
         run: |
           git add ${{ env.DEPLOY_FILE }}
-          git commit -m "Actualizar imagen a ${GITHUB_SHA} en ${ENVIRONMENT}" || echo "No hay cambios que confirmar."
+          git commit -m "Actualizar imagen a ${NEW_TAG} en ${ENVIRONMENT}" || echo "No hay cambios que confirmar."
           git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
 
-      # 17. Salida de la imagen
+      # 18. Salida de la imagen
       - name: Salida de la imagen
-        run: echo 'Imagen construida y enviada a Docker Hub'
+        run: echo "Imagen construida y enviada a Docker Hub con tag ${NEW_TAG}"
