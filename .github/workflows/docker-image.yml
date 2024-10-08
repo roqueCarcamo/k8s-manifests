@@ -1,18 +1,35 @@
-name: Build, Test, and Push Docker Image
+name: Build, Test, Push Docker Image, and Update Deployment
 
+# 1. Gatillo del flujo de trabajo
 on:
   push:
     branches:
       - main
+      - dev
+      - qa
+    # Ignorar cambios en k8s-manifests para prevenir ciclos infinitos
+    paths-ignore:
+      - 'k8s-manifests/**'
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_NAME: demo-spring-boot
+
     steps:
+      # 2. Checkout del código
       - name: Checkout código
         uses: actions/checkout@v3
 
+      # 3. Configurar git para permitir commits posteriores
+      - name: Configurar Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      # 4. Cache de Maven para acelerar las construcciones
       - name: Cache de Maven
         uses: actions/cache@v3
         with:
@@ -21,30 +38,37 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      # 5. Configurar JDK 17
       - name: Configurar JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'adopt'
 
+      # 6. Construir con Maven
       - name: Construir con Maven
         run: mvn clean package -DskipTests
 
+      # 7. Ejecutar pruebas con Maven
       - name: Ejecutar pruebas con Maven
         run: mvn test
 
+      # 8. Configurar QEMU (opcional, para arquitecturas multiplataforma)
       - name: Configurar QEMU
         uses: docker/setup-qemu-action@v2
 
+      # 9. Configurar Docker Buildx
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      # 10. Iniciar sesión en Docker Hub
       - name: Iniciar sesión en Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 11. Construir y etiquetar la imagen Docker
       - name: Construir y etiquetar la imagen Docker
         id: build-image
         uses: docker/build-push-action@v4
@@ -52,40 +76,65 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ github.sha }}
-      - name: Verificar contenido antes de cambiar
-        run: cat k8s-manifests/deployment.yaml
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Update image version in deployment.yaml
+      # 12. Determinar el ambiente y el archivo de despliegue
+      - name: Determinar Ambiente y Archivo de Deployment
+        id: set-env
+        run: |
+          BRANCH_NAME=$(echo "${GITHUB_REF##*/}")
+          echo "Branch actual: ${BRANCH_NAME}"
+          case "$BRANCH_NAME" in
+            main)
+              echo "ENVIRONMENT=production" >> $GITHUB_ENV
+              echo "DEPLOY_FILE=k8s-manifests/main/deployment.yaml" >> $GITHUB_ENV
+              ;;
+            dev)
+              echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+              echo "DEPLOY_FILE=k8s-manifests/dev/deployment.yaml" >> $GITHUB_ENV
+              ;;
+            qa)
+              echo "ENVIRONMENT=qa" >> $GITHUB_ENV
+              echo "DEPLOY_FILE=k8s-manifests/qa/deployment.yaml" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Ambiente no reconocido: ${BRANCH_NAME}"
+              exit 1
+              ;;
+          esac
+          echo "Archivo de despliegue: $DEPLOY_FILE"
+
+      # 13. Verificar contenido antes de cambiar
+      - name: Verificar contenido antes de cambiar
+        run: cat ${{ env.DEPLOY_FILE }}
+
+      # 14. Actualizar la versión de la imagen en deployment.yaml
+      - name: Actualizar versión de la imagen en deployment.yaml
         run: |
           SHA_VALUE=${GITHUB_SHA}
           echo "Reemplazando con SHA_VALUE: ${SHA_VALUE}"
-          
-          # Usar un comando sed más simple
-          sed -i "s|image: rcarcamo/demo-spring-boot:[^ ]*|image: rcarcamo/demo-spring-boot:${SHA_VALUE}|g" k8s-manifests/deployment.yaml
-          
-          # Verificar si el comando sed se ejecutó correctamente
+
+          sed -i "s|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ ]*|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${SHA_VALUE}|g" ${{ env.DEPLOY_FILE }}
+
           if [ $? -eq 0 ]; then
             echo "Reemplazo completado"
           else
             echo "Error en el comando sed"
+            exit 1
           fi
 
+      # 15. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
-        run: cat k8s-manifests/deployment.yaml
+        run: cat ${{ env.DEPLOY_FILE }}
 
+      # 16. Commit y Push de los cambios
       - name: Commit changes
         run: |
-          git config --local user.email "actions@github.com"
-          git config --local user.name "GitHub Actions"
-          git add k8s-manifests/deployment.yaml
-          git commit -m "Actualizar imagen a ${GITHUB_SHA}" || echo "No hay cambios que confirmar."
-          git push origin main || echo "No hay cambios que enviar."
+          git add ${{ env.DEPLOY_FILE }}
+          git commit -m "Actualizar imagen a ${GITHUB_SHA} en ${ENVIRONMENT}" || echo "No hay cambios que confirmar."
+          git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
 
+      # 17. Salida de la imagen
       - name: Salida de la imagen
         run: echo 'Imagen construida y enviada a Docker Hub'
-
-
-
-
