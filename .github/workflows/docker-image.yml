@@ -68,7 +68,7 @@ jobs:
 
       # 10. Instalar jq para procesar JSON
       - name: Instalar jq
-        run: sudo apt-get install -y jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       # 11. Generar nuevo tag incremental
       - name: Generar nuevo tag
@@ -93,6 +93,7 @@ jobs:
             NEW_NUMBER=1
           else
             MAX_NUMBER=$(echo "$ENV_TAGS" | sort -n | tail -1)
+            echo "Número máximo existente: $MAX_NUMBER"
             NEW_NUMBER=$((MAX_NUMBER + 1))
           fi
           
@@ -149,35 +150,45 @@ jobs:
 
       # 15. Verificar contenido antes de cambiar
       - name: Verificar contenido antes de cambiar
-        run: cat ${{ env.DEPLOY_FILE }}
+        run: |
+          echo "Contenido actual de $DEPLOY_FILE:"
+          cat ${{ env.DEPLOY_FILE }}
 
-      # 16. Actualizar la versión de la imagen en deployment.yaml
+      # 16. Instalar yq para manipular YAML
+      - name: Instalar yq
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
+      # 17. Actualizar la versión de la imagen en deployment.yaml usando yq
       - name: Actualizar versión de la imagen en deployment.yaml
         run: |
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
           echo "Actualizando imagen a: $IMAGE"
           
-          # Usar sed más robusto para manejar posibles comillas y espacios
-          sed -i "s|image:\s*\"\?${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ \"']*\"?|image: \"${IMAGE}\"|g" ${{ env.DEPLOY_FILE }}
+          # Usar yq para actualizar la imagen de cada contenedor
+          yq eval '.spec.template.spec.containers[].image = strenv(IMAGE)' -i ${{ env.DEPLOY_FILE }}
           
           if [ $? -eq 0 ]; then
             echo "Reemplazo completado"
           else
-            echo "Error en el comando sed"
+            echo "Error al actualizar deployment.yaml con yq"
             exit 1
           fi
 
-      # 17. Verificar contenido después del cambio
+      # 18. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
-        run: cat ${{ env.DEPLOY_FILE }}
+        run: |
+          echo "Contenido actualizado de $DEPLOY_FILE:"
+          cat ${{ env.DEPLOY_FILE }}
 
-      # 18. Commit y Push de los cambios en deployment.yaml
+      # 19. Commit y Push de los cambios en deployment.yaml
       - name: Commit changes
         run: |
           git add ${{ env.DEPLOY_FILE }}
           git commit -m "Actualizar imagen a ${NEW_TAG} en ${ENVIRONMENT}" || echo "No hay cambios que confirmar."
           git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
 
-      # 19. Salida de la imagen
+      # 20. Salida de la imagen
       - name: Salida de la imagen
         run: echo "Imagen construida y enviada a Docker Hub con tag ${NEW_TAG}"
