@@ -100,9 +100,9 @@ jobs:
       # 15. Commit changes
       - name: Commit changes
         run: |
-          git add k8s-manifests/${{ github.ref }}/*.yaml
+          git add k8s-manifests/${{ github.ref }}/*.yaml # Solo usa el nombre de la rama
           git commit -m "Actualizar imagen a ${{ env.TAG }}" || echo "No hay cambios que confirmar."
-          git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
+          git push origin ${GITHUB_REF##*/} || echo "No hay cambios que enviar."
 
       # 16. Salida de la imagen
       - name: Salida de la imagen
