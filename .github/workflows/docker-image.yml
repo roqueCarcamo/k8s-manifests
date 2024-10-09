@@ -100,9 +100,11 @@ jobs:
       # 15. Commit changes
       - name: Commit changes
         run: |
-          git add k8s-manifests/${{ github.ref }}/*.yaml # Solo usa el nombre de la rama
+          ENVIRONMENT=${GITHUB_REF##*/}
+          DEPLOYMENT_FILE="k8s-manifests/${ENVIRONMENT}/deployment.yaml"
+          git add $DEPLOYMENT_FILE
           git commit -m "Actualizar imagen a ${{ env.TAG }}" || echo "No hay cambios que confirmar."
-          git push origin ${GITHUB_REF##*/} || echo "No hay cambios que enviar."
+          git push origin $ENVIRONMENT || echo "No hay cambios que enviar."
 
       # 16. Salida de la imagen
       - name: Salida de la imagen
