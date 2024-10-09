@@ -69,16 +69,19 @@ jobs:
       # 10. Instalar yq para manipular archivos YAML
       - name: Instalar yq
         run: |
-          sudo wget https://github.com/mikefarah/yq/releases/download/v4.30.6/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
+          yq --version
 
       # 11. Generar nuevo tag incremental
       - name: Generar nuevo tag
         id: generate-tag
         run: |
           ENVIRONMENT=$(echo "${GITHUB_REF##*/}")
-          IMAGE_REPO=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
           echo "Ambiente: ${ENVIRONMENT}"
+          
+          IMAGE_REPO=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          echo "Repositorio de imagen: ${IMAGE_REPO}"
           
           # Obtener las etiquetas actuales desde Docker Hub
           TAGS=$(curl -s -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" "https://hub.docker.com/v2/repositories/${IMAGE_REPO}/tags?page_size=100" | jq -r '.results[].name')
@@ -152,27 +155,32 @@ jobs:
 
       # 15. Verificar contenido antes de cambiar
       - name: Verificar contenido antes de cambiar
-        run: cat ${{ env.DEPLOY_FILE }}
+        run: |
+          echo "Contenido actual de ${{ env.DEPLOY_FILE }}:"
+          cat ${{ env.DEPLOY_FILE }}
 
       # 16. Actualizar la versión de la imagen en deployment.yaml con yq
       - name: Actualizar versión de la imagen en deployment.yaml con yq
         run: |
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
           echo "Actualizando imagen a: $IMAGE"
-
-          # Utilizar yq para actualizar el campo de la imagen
-          yq eval --inplace --arg IMAGE "$IMAGE" '.spec.template.spec.containers[].image = $IMAGE' ${{ env.DEPLOY_FILE }}
-
-          if [ $? -eq 0 ]; then
-            echo "Actualización de la imagen completada."
-          else
-            echo "Error al actualizar la imagen con yq."
-            exit 1
-          fi
+          
+          # Verificar si yq está instalado correctamente
+          yq --version
+          
+          # Usar yq para actualizar la imagen en los containers
+          # Ajusta el nombre del contenedor si es diferente
+          yq e '.spec.template.spec.containers[] |= select(.name == "demo-spring-boot").image = strenv(IMAGE)' -i ${{ env.DEPLOY_FILE }}
+          
+          # Verificar que la línea se actualizó correctamente
+          UPDATED_IMAGE=$(yq e '.spec.template.spec.containers[] | select(.name == "demo-spring-boot") | .image' ${{ env.DEPLOY_FILE }})
+          echo "Imagen actualizada en deployment.yaml: $UPDATED_IMAGE"
 
       # 17. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
-        run: cat ${{ env.DEPLOY_FILE }}
+        run: |
+          echo "Contenido actualizado de ${{ env.DEPLOY_FILE }}:"
+          cat ${{ env.DEPLOY_FILE }}
 
       # 18. Commit y Push de los cambios en deployment.yaml
       - name: Commit changes
