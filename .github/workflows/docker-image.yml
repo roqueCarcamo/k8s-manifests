@@ -15,7 +15,9 @@ jobs:
 
     env:
       IMAGE_NAME: demo-spring-boot
-      TAG: ${{ github.ref }}-${{ github.run_number }} # Generar un tag basado en la rama y el número de ejecución
+      BRANCH_NAME: ${{ github.ref }} # Obtiene la referencia de la rama
+      CLEAN_BRANCH_NAME: ${{ github.ref_name }} # Elimina la parte de refs/heads/
+      TAG: ${{ env.CLEAN_BRANCH_NAME }}-${{ github.run_number }} # Generar un tag basado en la rama y el número de ejecución
 
     steps:
       # 1. Checkout del código
