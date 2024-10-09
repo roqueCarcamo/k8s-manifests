@@ -13,12 +13,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    env:
-      IMAGE_NAME: demo-spring-boot
-      BRANCH_NAME: ${{ github.ref }} # Obtiene la referencia de la rama
-      CLEAN_BRANCH_NAME: ${{ github.ref_name }} # Elimina la parte de refs/heads/
-      TAG: ${{ env.CLEAN_BRANCH_NAME }}-${{ github.run_number }} # Generar un tag basado en la rama y el número de ejecución
-
     steps:
       # 1. Checkout del código
       - name: Checkout código
@@ -75,14 +69,18 @@ jobs:
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
 
-      # 11. Construir y etiquetar la imagen Docker
-      - name: Construir y etiquetar la imagen Docker
-        id: build-image
-        run: |
-          docker build . -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} 
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+      # 11. Definir el tag de la imagen
+      - name: Definir tag de la imagen
+        id: define_tag
+        run: echo "TAG=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
-      # 12. Actualizar el deployment.yaml para el entorno correspondiente
+      # 12. Construir y etiquetar la imagen Docker
+      - name: Construir y etiquetar la imagen Docker
+        run: |
+          docker build . -t ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}
+
+      # 13. Actualizar el deployment.yaml para el entorno correspondiente
       - name: Actualizar deployment.yaml
         run: |
           ENVIRONMENT=${GITHUB_REF##*/} # Obtiene el nombre de la rama
@@ -90,22 +88,22 @@ jobs:
           echo "Actualizando $DEPLOYMENT_FILE con el tag ${TAG}"
           
           # Usa yq para reemplazar la imagen en el archivo deployment.yaml
-          yq e -i '.spec.template.spec.containers[0].image = "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}"' $DEPLOYMENT_FILE
+          yq e -i ".spec.template.spec.containers[0].image = \"${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}\"" $DEPLOYMENT_FILE
 
-      # 13. Verificar contenido después del cambio
+      # 14. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
         run: |
           ENVIRONMENT=${GITHUB_REF##*/}
           DEPLOYMENT_FILE="k8s-manifests/${ENVIRONMENT}/deployment.yaml"
           cat $DEPLOYMENT_FILE
 
-      # 14. Commit changes
+      # 15. Commit changes
       - name: Commit changes
         run: |
           git add k8s-manifests/${{ github.ref }}/*.yaml
           git commit -m "Actualizar imagen a ${{ env.TAG }}" || echo "No hay cambios que confirmar."
           git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
 
-      # 15. Salida de la imagen
+      # 16. Salida de la imagen
       - name: Salida de la imagen
         run: echo 'Imagen construida y enviada a Docker Hub'
