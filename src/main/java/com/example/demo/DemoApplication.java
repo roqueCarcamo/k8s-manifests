@@ -12,12 +12,3 @@ public class DemoApplication {
         SpringApplication.run(DemoApplication.class, args);
     }
 }
-
-@RestController
-class HelloController {
-
-    @GetMapping("/")
-    public String hello() {
-        return "¡Hola Spring Boot con Argo CD Main!";
-    }
-}
