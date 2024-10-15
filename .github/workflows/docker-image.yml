@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
       - qa
     paths-ignore:
       - 'k8s-manifests/**' # Evita ciclos infinitos al ignorar cambios en k8s-manifests
@@ -11,9 +12,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    env:
-      IMAGE_NAME: demo-spring-boot
 
     steps:
       # 1. Checkout del código
@@ -65,104 +63,49 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 10. Instalar jq para procesar JSON
-      - name: Instalar jq
-        run: sudo apt-get install -y jq
-
-      # 11. Generar nuevo tag incremental
-      - name: Generar nuevo tag
-        id: generate-tag
+      # 10. Instalar yq para manipular archivos YAML
+      - name: Instalar yq
         run: |
-          ENVIRONMENT=$(echo "${GITHUB_REF##*/}")
-          IMAGE_REPO=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-          echo "Ambiente: ${ENVIRONMENT}"
-          
-          # Obtener las etiquetas actuales desde Docker Hub
-          TAGS=$(curl -s -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" "https://hub.docker.com/v2/repositories/${IMAGE_REPO}/tags?page_size=100" | jq -r '.results[].name')
-          
-          echo "Etiquetas actuales: $TAGS"
-          
-          # Filtrar etiquetas por ambiente
-          ENV_TAGS=$(echo "$TAGS" | grep "^${ENVIRONMENT}-" | sed "s/^${ENVIRONMENT}-//")
-          
-          echo "Etiquetas para el ambiente ${ENVIRONMENT}: $ENV_TAGS"
-          
-          # Determinar el nuevo número
-          if [ -z "$ENV_TAGS" ]; then
-            NEW_NUMBER=1
-          else
-            MAX_NUMBER=$(echo "$ENV_TAGS" | sort -n | tail -1)
-            NEW_NUMBER=$((MAX_NUMBER + 1))
-          fi
-          
-          NEW_TAG="${ENVIRONMENT}-${NEW_NUMBER}"
-          echo "Nuevo tag generado: ${NEW_TAG}"
-          
-          # Exportar el nuevo tag para uso posterior
-          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
 
-      # 12. Construir y etiquetar la imagen Docker con el nuevo tag
-      - name: Construir y etiquetar la imagen Docker con nuevo tag
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
+      # 11. Definir el tag de la imagen
+      - name: Definir tag de la imagen
+        id: define_tag
+        run: echo "TAG=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
-      # 13. Determinar el archivo de despliegue según el ambiente
-      - name: Determinar Archivo de Deployment
-        id: set-env
+      # 12. Construir y etiquetar la imagen Docker
+      - name: Construir y etiquetar la imagen Docker
         run: |
-          BRANCH_NAME=$(echo "${GITHUB_REF##*/}")
-          echo "Branch actual: ${BRANCH_NAME}"
-          case "$BRANCH_NAME" in
-            main)
-              echo "ENVIRONMENT=production" >> $GITHUB_ENV
-              echo "DEPLOY_FILE=k8s-manifests/main/deployment.yaml" >> $GITHUB_ENV
-              ;;
-            qa)
-              echo "ENVIRONMENT=qa" >> $GITHUB_ENV
-              echo "DEPLOY_FILE=k8s-manifests/qa/deployment.yaml" >> $GITHUB_ENV
-              ;;
-            *)
-              echo "Ambiente no reconocido: ${BRANCH_NAME}"
-              exit 1
-              ;;
-          esac
-          echo "Archivo de despliegue: $DEPLOY_FILE"
+          docker build . -t ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}
 
-      # 14. Verificar contenido antes de cambiar
-      - name: Verificar contenido antes de cambiar
-        run: cat ${{ env.DEPLOY_FILE }}
-
-      # 15. Actualizar la versión de la imagen en deployment.yaml
-      - name: Actualizar versión de la imagen en deployment.yaml
+      # 13. Actualizar el deployment.yaml para el entorno correspondiente
+      - name: Actualizar deployment.yaml
         run: |
-          IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.NEW_TAG }}
-          echo "Actualizando imagen a: $IMAGE"
+          ENVIRONMENT=${GITHUB_REF##*/} # Obtiene el nombre de la rama
+          DEPLOYMENT_FILE="k8s-manifests/${ENVIRONMENT}/deployment.yaml"
+          echo "Actualizando $DEPLOYMENT_FILE con el tag ${TAG}"
           
-          sed -i "s|image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:[^ ]*|image: $IMAGE|g" ${{ env.DEPLOY_FILE }}
-          
-          if [ $? -eq 0 ]; then
-            echo "Reemplazo completado"
-          else
-            echo "Error en el comando sed"
-            exit 1
-          fi
+          # Usa yq para reemplazar la imagen en el archivo deployment.yaml
+          yq e -i ".spec.template.spec.containers[0].image = \"${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}\"" $DEPLOYMENT_FILE
 
-      # 16. Verificar contenido después del cambio
+      # 14. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
-        run: cat ${{ env.DEPLOY_FILE }}
+        run: |
+          ENVIRONMENT=${GITHUB_REF##*/}
+          DEPLOYMENT_FILE="k8s-manifests/${ENVIRONMENT}/deployment.yaml"
+          cat $DEPLOYMENT_FILE
 
-      # 17. Commit y Push de los cambios en deployment.yaml
+      # 15. Commit changes
       - name: Commit changes
         run: |
-          git add ${{ env.DEPLOY_FILE }}
-          git commit -m "Actualizar imagen a ${NEW_TAG} en ${ENVIRONMENT}" || echo "No hay cambios que confirmar."
-          git push origin ${{ github.ref }} || echo "No hay cambios que enviar."
+          ENVIRONMENT=${GITHUB_REF##*/}
+          DEPLOYMENT_FILE="k8s-manifests/${ENVIRONMENT}/deployment.yaml"
+          git add $DEPLOYMENT_FILE
+          git commit -m "Actualizar imagen a ${{ env.TAG }}" || echo "No hay cambios que confirmar."
+          git push origin $ENVIRONMENT || echo "No hay cambios que enviar."
 
-      # 18. Salida de la imagen
+      # 16. Salida de la imagen
       - name: Salida de la imagen
-        run: echo "Imagen construida y enviada a Docker Hub con tag ${NEW_TAG}"
+        run: echo 'Imagen construida y enviada a Docker Hub'
