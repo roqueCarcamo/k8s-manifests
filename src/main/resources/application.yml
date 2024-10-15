@@ -1,0 +1,14 @@
+logging:
+  level:
+    root: INFO
+    com.example: DEBUG
+  file:
+    name: logs/application.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      fileNamePattern: logs/application-%d{yyyy-MM-dd}.%i.log
+      maxHistory: 30
+      maxFileSize: 10MB
