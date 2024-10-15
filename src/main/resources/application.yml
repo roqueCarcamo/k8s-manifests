@@ -1,7 +1,8 @@
 logging:
   level:
     root: INFO
-    com.example: INFO
+    com:
+      example: INFO
   file:
     name: logs/application.log
   pattern:
