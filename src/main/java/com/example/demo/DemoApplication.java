@@ -11,11 +11,3 @@ public class DemoApplication {
     }
 }
 
-@RestController
-class HelloController {
-
-    @GetMapping("/")
-    public String hello() {
-        return "¡Hola Spring Boot con Argo CD v2!";
-    }
-}
