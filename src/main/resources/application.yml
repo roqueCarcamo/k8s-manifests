@@ -1,7 +1,7 @@
 logging:
   level:
     root: INFO
-    com.example: DEBUG
+    com.example: INFO
   file:
     name: logs/application.log
   pattern:
