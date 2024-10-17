@@ -90,3 +90,27 @@ minikube delete -p qa
 Notas
 Si estás usando un hipervisor como VirtualBox o Docker, asegúrate de que tu sistema tenga suficientes recursos (por ejemplo, CPU, memoria) para ejecutar múltiples clústeres de Minikube.
 Puedes personalizar la configuración de cada clúster pasando parámetros adicionales (por ejemplo, --cpus) al iniciar Minikube.
+
+## Paso 6: Reiniciar o instalar servicios de Argo CD
+Para reiniciar o instalar los servicios de Argo CD se deben ejecutar los siguientes comandos:
+
+```bash
+chmod +x reiniciar_minikube.sh 
+./reiniciar_minikube.sh
+```
+
+## Paso 7: URL de Argo CD DEV
+Para obtener las URLS de Argo CD del cluster DEV se deben ejecutar los siguientes comandos:
+
+```bash
+minikube profile dev
+minikube service argocd-server -n argocd --url
+```
+
+## Paso 8: URL de Argo CD QA
+Para obtener las URLS de Argo CD del cluster QA se deben ejecutar los siguientes comandos:
+
+```bash
+minikube profile qa
+minikube service argocd-server -n argocd --url
+```
