@@ -66,4 +66,21 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>main</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <spring.active.profile>main</spring.active.profile>
+            </properties>
+        </profile>
+        <profile>
+            <id>qa</id>
+            <properties>
+                <spring.active.profile>qa</spring.active.profile>
+            </properties>
+        </profile>
+    </profiles>
 </project>
