@@ -114,3 +114,8 @@ Para obtener las URLS de Argo CD del cluster QA se deben ejecutar los siguientes
 minikube profile qa
 minikube service argocd-server -n argocd --url
 ```
+
+## Paso 9: URL SWAGGER
+```bash
+http://localhost:8080/swagger-ui/index.html
+```

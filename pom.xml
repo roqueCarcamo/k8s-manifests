@@ -15,6 +15,7 @@
     </parent>
     <properties>
         <springdoc.version>2.1.0</springdoc.version>
+        <springdoc-openapi-maven-plugin.version>1.4</springdoc-openapi-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -44,6 +45,24 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-maven-plugin</artifactId>
+                <version>${springdoc-openapi-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <apiDocsUrl>http://localhost:8080/v3/api-docs</apiDocsUrl>
+                    <outputFileName>openapi.json</outputFileName>
+                    <outputDir>${project.build.directory}</outputDir>
+                </configuration>
             </plugin>
         </plugins>
     </build>
