@@ -115,7 +115,22 @@ minikube profile qa
 minikube service argocd-server -n argocd --url
 ```
 
-## Paso 9: URL SWAGGER
+## Paso 9: Obtener los Pods
+```bash
+kubectl get pods
+```
+
+## Paso 10: Obtener Services del Cluster
+```bash
+kubectl get svc
+```
+
+## Paso 11: Obtener URL del service del Pod
+```bash
+minikube service demo-spring-boot-service
+```
+
+## Paso 12: URL SWAGGER
 ```bash
 http://localhost:8080/swagger-ui/index.html
 ```
