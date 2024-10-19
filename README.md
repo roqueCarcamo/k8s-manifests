@@ -132,5 +132,5 @@ minikube service demo-spring-boot-service
 
 ## Paso 12: URL SWAGGER
 ```bash
-http://localhost:8080/swagger-ui/index.html
+http://localhost:8080/spring-demo/swagger-ui/index.html
 ```
