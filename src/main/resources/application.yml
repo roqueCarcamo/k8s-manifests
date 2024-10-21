@@ -17,7 +17,7 @@ server:
     connection-timeout: 60000
     uri-encoding: UTF-8
   servlet:
-    context-path: /spring-demo
+    context-path: /
     application-display-name: Demo Spring.
 spring:
   profiles:
@@ -37,3 +37,6 @@ logging:
       fileNamePattern: logs/application-%d{yyyy-MM-dd}.%i.log
       maxHistory: 30
       maxFileSize: 10MB
+springdoc:
+  swagger-ui:
+      path: /swagger-ui.html
