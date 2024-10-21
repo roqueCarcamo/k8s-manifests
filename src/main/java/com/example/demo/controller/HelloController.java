@@ -14,8 +14,8 @@ class HelloController {
         log.info("RAMA MAIN SINCRONIZADA");
     } 
 
-    @GetMapping("/hello")
-    public String hello() {
+    @GetMapping("/holaArgoCD")
+    public String hola() {
         log.info("RAMA MAIN");
         return "¡Hola Spring Boot con Argo CD Main!";
     }
