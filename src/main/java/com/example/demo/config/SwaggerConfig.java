@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,6 +14,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class SwaggerConfig {
 
+	@Value("${spring.profiles.active}")
+	private String activeProfile;
+
 	@Bean
 	public OpenAPI springOpenAPI() {
 		return new OpenAPI().info(getApiInfo());
@@ -20,7 +24,7 @@ public class SwaggerConfig {
 
 	private Info getApiInfo() {
 		return new Info()
-			.title("Servicios para demo Argo CD")
+			.title("Servicios para demo Argo CD, PERFIL ACTIVO: "+activeProfile)
 			.version("1.0.0")
 			.termsOfService("https://conexia.com/terms")
 			.contact(new Contact().name("conexia").url("https://conexia.com").email("orion@conexia.com"))
