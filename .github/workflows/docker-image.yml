@@ -39,49 +39,51 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      # 5. Construir con Maven basado en la rama (perfil específico por entorno)
-      - name: Construir con Maven
-        run: |
-          ENVIRONMENT=${GITHUB_REF##*/} # Usar el nombre de la rama para definir el perfil
-          mvn clean package -P ${ENVIRONMENT} -DskipTests
+      # 5. Definir la variable de entorno ENVIRONMENT
+      - name: Definir la variable de entorno
+        run: echo "ENVIRONMENT=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      # 6. Ejecutar pruebas con Maven
+      # 6. Construir con Maven basado en la rama (perfil específico por entorno)
+      - name: Construir con Maven
+        run: mvn clean package -P ${{ env.ENVIRONMENT }} -DskipTests
+
+      # 7. Ejecutar pruebas con Maven
       - name: Ejecutar pruebas con Maven
         run: mvn test
 
-      # 7. Configurar QEMU (opcional para arquitecturas multiplataforma)
+      # 8. Configurar QEMU (opcional para arquitecturas multiplataforma)
       - name: Configurar QEMU
         uses: docker/setup-qemu-action@v2
 
-      # 8. Configurar Docker Buildx
+      # 9. Configurar Docker Buildx
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 9. Iniciar sesión en Docker Hub
+      # 10. Iniciar sesión en Docker Hub
       - name: Iniciar sesión en Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 10. Instalar yq para manipular archivos YAML
+      # 11. Instalar yq para manipular archivos YAML
       - name: Instalar yq
         run: |
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
           sudo chmod +x /usr/local/bin/yq
 
-      # 11. Definir el tag de la imagen
+      # 12. Definir el tag de la imagen
       - name: Definir tag de la imagen
         id: define_tag
         run: echo "TAG=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
 
-      # 12. Construir y etiquetar la imagen Docker
+      # 13. Construir y etiquetar la imagen Docker
       - name: Construir y etiquetar la imagen Docker
         run: |
           docker build . -t ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}
 
-      # 13. Actualizar el deployment.yaml para el entorno correspondiente
+      # 14. Actualizar el deployment.yaml para el entorno correspondiente
       - name: Actualizar deployment.yaml
         run: |
           ENVIRONMENT=${GITHUB_REF##*/} # Obtiene el nombre de la rama
@@ -91,14 +93,14 @@ jobs:
           # Usa yq para reemplazar la imagen en el archivo deployment.yaml
           yq e -i ".spec.template.spec.containers[0].image = \"${{ secrets.DOCKERHUB_USERNAME }}/demo-spring-boot:${{ env.TAG }}\"" $DEPLOYMENT_FILE
 
-      # 14. Verificar contenido después del cambio
+      # 15. Verificar contenido después del cambio
       - name: Verificar contenido después del cambio
         run: |
           ENVIRONMENT=${GITHUB_REF##*/}
           DEPLOYMENT_FILE="k8s-manifests/${ENVIRONMENT}/deployment.yaml"
           cat $DEPLOYMENT_FILE
 
-      # 15. Commit changes
+      # 16. Commit changes
       - name: Commit changes
         run: |
           ENVIRONMENT=${GITHUB_REF##*/}
@@ -107,6 +109,6 @@ jobs:
           git commit -m "Actualizar imagen a ${{ env.TAG }}" || echo "No hay cambios que confirmar."
           git push origin $ENVIRONMENT || echo "No hay cambios que enviar."
 
-      # 16. Salida de la imagen
+      # 17. Salida de la imagen
       - name: Salida de la imagen
         run: echo 'Imagen construida y enviada a Docker Hub'
