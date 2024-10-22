@@ -11,12 +11,18 @@ class HelloController {
 
     @PostConstruct
     public void init(){
-        log.info("RAMA QA SINCRONIZADA");
+        log.info("RAMA MAIN SINCRONIZADA");
     } 
 
     @GetMapping("/holaArgoCD")
     public String hola() {
-        log.info("RAMA QA");
-        return "¡Hola Spring Boot con Argo CD QA!";
+        log.info("RAMA MAIN");
+        return "¡Hola Spring Boot con Argo CD MAIN!";
+    }
+
+    @GetMapping("/nuevo")
+    public String mensaje() {
+        log.info("NUEVO SERVICIO");
+        return "¡Spring Boot con Argo CD!";
     }
 }
