@@ -17,6 +17,12 @@ class HelloController {
     @GetMapping("/holaArgoCD")
     public String hola() {
         log.info("RAMA MAIN");
-        return "¡Hola Spring Boot con Argo CD Main!";
+        return "¡Hola Spring Boot con Argo CD MAIN!";
+    }
+
+    @GetMapping("/nuevo")
+    public String mensaje() {
+        log.info("NUEVO SERVICIO");
+        return "¡Spring Boot con Argo CD!";
     }
 }
